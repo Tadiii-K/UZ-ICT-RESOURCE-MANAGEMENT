@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - UZ ICT Resource Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo"><i class="bi bi-hdd-network"></i></div>
+                    <div>
+                        <h1 class="sidebar-title">UZ ICT System</h1>
+                        <p class="sidebar-subtitle">Resource Management</p>
+                    </div>
+                </div>
+            </div>
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="dashboard.html" class="nav-item"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Assets</div>
+                    <a href="assets.html" class="nav-item"><i class="bi bi-hdd-stack"></i><span>Asset Register</span></a>
+                    <a href="allocations.html" class="nav-item"><i class="bi bi-arrow-left-right"></i><span>Allocation & Movement</span></a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Operations</div>
+                    <a href="faults.html" class="nav-item"><i class="bi bi-exclamation-triangle"></i><span>Fault Reporting</span></a>
+                    <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Admin</div>
+                    <a href="reports.html" class="nav-item active"><i class="bi bi-file-earmark-bar-graph"></i><span>Reports</span></a>
+                    <a href="users.html" class="nav-item admin-only d-none"><i class="bi bi-people"></i><span>User Management</span></a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item" onclick="logout(); return false;">
+                    <i class="bi bi-box-arrow-left"></i><span>Sign out</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-title">University of Zimbabwe · ICT Resource Management System</div>
+                <div class="topbar-user">
+                    <span class="topbar-user-name" id="userDisplayName">User</span>
+                    <div class="topbar-avatar" id="userAvatar">U</div>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <h1 class="page-title">Reports</h1>
+                <p class="page-subtitle">Generate and export reports in HTML or CSV format</p>
+
+                <div id="alertContainer"></div>
+
+                <!-- Report Types Grid -->
+                <div class="report-grid">
+                    <div class="card report-card" onclick="generateReport('all-assets')">
+                        <div class="card-body">
+                            <div class="report-card-icon" style="background: var(--color-info-bg); color: var(--color-info);">
+                                <i class="bi bi-hdd-stack"></i>
+                            </div>
+                            <div class="report-card-title">All Assets</div>
+                            <div class="report-card-desc">Complete inventory of all ICT assets</div>
+                        </div>
+                    </div>
+                    <div class="card report-card" onclick="generateReport('faulty-assets')">
+                        <div class="card-body">
+                            <div class="report-card-icon" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <div class="report-card-title">Faulty Assets</div>
+                            <div class="report-card-desc">Assets currently marked as faulty</div>
+                        </div>
+                    </div>
+                    <div class="card report-card" onclick="generateReport('maintenance')">
+                        <div class="card-body">
+                            <div class="report-card-icon" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                                <i class="bi bi-tools"></i>
+                            </div>
+                            <div class="report-card-title">Under Maintenance</div>
+                            <div class="report-card-desc">Assets currently under maintenance</div>
+                        </div>
+                    </div>
+                    <div class="card report-card" onclick="generateReport('by-department')">
+                        <div class="card-body">
+                            <div class="report-card-icon" style="background: var(--color-purple-bg); color: var(--color-purple);">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="report-card-title">Assets by Department</div>
+                            <div class="report-card-desc">Asset distribution across departments</div>
+                        </div>
+                    </div>
+                    <div class="card report-card" onclick="generateReport('allocations')">
+                        <div class="card-body">
+                            <div class="report-card-icon" style="background: var(--color-success-bg); color: var(--color-success);">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </div>
+                            <div class="report-card-title">Allocation History</div>
+                            <div class="report-card-desc">Asset movement and transfer history</div>
+                        </div>
+                    </div>
+                    <div class="card report-card" onclick="generateReport('fault-reports')">
+                        <div class="card-body">
+                            <div class="report-card-icon" style="background: var(--color-bg-secondary); color: var(--color-text-secondary);">
+                                <i class="bi bi-clipboard-x"></i>
+                            </div>
+                            <div class="report-card-title">Fault Reports</div>
+                            <div class="report-card-desc">All fault reports and their status</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Report Preview Section -->
+                <div class="card d-none" id="reportPreviewCard" style="margin-top: 24px;">
+                    <div class="card-body">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h3 class="card-title" id="reportTitle" style="margin: 0;">Report Preview</h3>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-outline btn-sm" onclick="exportToHTML()">
+                                    <i class="bi bi-filetype-html"></i> Export HTML
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="exportToCSV()">
+                                    <i class="bi bi-filetype-csv"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="reportTableContainer">
+                            <!-- Report table will be generated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/reports.js"></script>
+</body>
+</html>

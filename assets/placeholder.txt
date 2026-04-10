@@ -1,0 +1,3 @@
+This folder is for static assets like images.
+
+Place the UZ logo here as 'uz-logo.png' for it to appear on the login page.
