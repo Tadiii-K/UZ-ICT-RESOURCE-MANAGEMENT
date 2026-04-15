@@ -27,7 +27,8 @@ async function loadDashboardData() {
             loadAssetStats(),
             loadCategoryStats(),
             loadRecentFaults(),
-            loadOpenFaultsCount()
+            loadOpenFaultsCount(),
+            loadSystemAlerts()
         ]);
         
     } catch (error) {
@@ -151,6 +152,98 @@ async function loadCategoryStats() {
         
     } catch (error) {
         console.error('Category stats error:', error);
+    }
+}
+
+async function loadSystemAlerts() {
+    try {
+        const today = new Date();
+        const in60Days = new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000);
+        const todayStr = today.toISOString().split('T')[0];
+        const in60Str = in60Days.toISOString().split('T')[0];
+
+        // Hardware warranty expiring within 60 days
+        const { data: warrantyAssets } = await db
+            .from('ict_assets')
+            .select('id, name, asset_tag, warranty_expiry')
+            .neq('status', 'disposed')
+            .gte('warranty_expiry', todayStr)
+            .lte('warranty_expiry', in60Str)
+            .order('warranty_expiry');
+
+        // Software licenses expiring within 60 days
+        const { data: softwareExpiring } = await db
+            .from('software_assets')
+            .select('id, name, vendor, license_expiry')
+            .eq('status', 'active')
+            .gte('license_expiry', todayStr)
+            .lte('license_expiry', in60Str)
+            .order('license_expiry');
+
+        // Overdue maintenance (scheduled date passed, still scheduled)
+        const { data: overdueMaintenance } = await db
+            .from('maintenance_records')
+            .select('id, ict_assets(name, asset_tag), scheduled_date')
+            .eq('status', 'scheduled')
+            .lt('scheduled_date', todayStr)
+            .order('scheduled_date');
+
+        const alerts = [];
+
+        if (warrantyAssets && warrantyAssets.length > 0) {
+            alerts.push({
+                icon: 'bi-shield-exclamation',
+                color: 'warning',
+                title: `${warrantyAssets.length} Warranty Expir${warrantyAssets.length === 1 ? 'y' : 'ies'} Within 60 Days`,
+                items: warrantyAssets.map(a => `<strong>${escapeHtml(a.asset_tag)}</strong> — ${escapeHtml(a.name)} <span class="text-muted">(${formatDate(a.warranty_expiry)})</span>`),
+                link: 'assets.html'
+            });
+        }
+
+        if (softwareExpiring && softwareExpiring.length > 0) {
+            alerts.push({
+                icon: 'bi-file-earmark-code',
+                color: 'warning',
+                title: `${softwareExpiring.length} Software License${softwareExpiring.length === 1 ? '' : 's'} Expiring Within 60 Days`,
+                items: softwareExpiring.map(s => `<strong>${escapeHtml(s.name)}</strong>${s.vendor ? ` — ${escapeHtml(s.vendor)}` : ''} <span class="text-muted">(${formatDate(s.license_expiry)})</span>`),
+                link: 'software.html'
+            });
+        }
+
+        if (overdueMaintenance && overdueMaintenance.length > 0) {
+            alerts.push({
+                icon: 'bi-tools',
+                color: 'danger',
+                title: `${overdueMaintenance.length} Overdue Maintenance Record${overdueMaintenance.length === 1 ? '' : 's'}`,
+                items: overdueMaintenance.map(m => `<strong>${escapeHtml(m.ict_assets?.asset_tag || '?')}</strong> — ${escapeHtml(m.ict_assets?.name || 'Unknown')} <span class="text-muted">(Scheduled: ${formatDate(m.scheduled_date)})</span>`),
+                link: 'maintenance.html'
+            });
+        }
+
+        const section = document.getElementById('systemAlertsSection');
+        const grid = document.getElementById('systemAlertsGrid');
+
+        if (alerts.length === 0 || !section || !grid) return;
+
+        section.style.display = 'block';
+        grid.innerHTML = alerts.map(alert => `
+            <div class="card" style="border-left: 4px solid var(--color-${alert.color}); border-radius: var(--radius-md);">
+                <div class="card-body" style="padding: 16px 20px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                        <i class="bi ${alert.icon}" style="font-size:18px; color:var(--color-${alert.color});"></i>
+                        <span style="font-weight:600; font-size:13px;">${alert.title}</span>
+                        <a href="${alert.link}" style="margin-left:auto; font-size:12px; color:var(--color-text-muted);">View all →</a>
+                    </div>
+                    <ul style="margin:0; padding-left:18px; font-size:12px; color:var(--color-text-secondary);">
+                        ${alert.items.slice(0, 4).map(item => `<li style="margin-bottom:4px;">${item}</li>`).join('')}
+                        ${alert.items.length > 4 ? `<li style="color:var(--color-text-muted);">+${alert.items.length - 4} more…</li>` : ''}
+                    </ul>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('System alerts error:', error);
     }
 }
 

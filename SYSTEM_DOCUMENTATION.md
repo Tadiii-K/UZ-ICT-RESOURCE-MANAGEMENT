@@ -4,7 +4,7 @@
 
 ### Complete System Documentation
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Date:** April 2026
 **Author:** University of Zimbabwe — ICT Department
 
@@ -27,6 +27,8 @@
    - 7.6 [Allocation & Movement Tracking](#76-allocation--movement-tracking)
    - 7.7 [Reports](#77-reports)
    - 7.8 [User Management](#78-user-management)
+   - 7.9 [Software Asset Tracking](#79-software-asset-tracking)
+   - 7.10 [Service Requests](#710-service-requests)
 8. [File Structure — What Each File Does](#8-file-structure)
 9. [How Data Flows Through the System](#9-how-data-flows)
 10. [Security — How the System Stays Safe](#10-security)
@@ -54,7 +56,7 @@ This system solves all of these problems by putting everything into one web-base
 
 ## 2. What the System Does
 
-At a high level, the system performs **five core functions**:
+At a high level, the system performs **seven core functions**:
 
 | Function | What It Means |
 |---|---|
@@ -63,6 +65,8 @@ At a high level, the system performs **five core functions**:
 | **Report Faults** | Any user can report that a piece of equipment is broken. The report goes into a queue that ICT technicians can review. |
 | **Track Maintenance** | When a technician fixes something, the system records what was wrong, what they did, how much it cost, and when it was completed. |
 | **Generate Reports** | Managers can pull reports showing all assets, faulty assets, maintenance history, department breakdowns, and allocation history — and export them to HTML or CSV files. |
+| **Manage Software Licences** | Track all software licences across departments, including vendor, version, seat count, expiry dates, and licence type. The system automatically flags licences that are expiring soon or have expired. |
+| **Handle Service Requests** | Any user can raise a formal request for new equipment, software, network support, or other ICT services. Admins and technicians can review, approve, and fulfil these requests. |
 
 ---
 
@@ -90,7 +94,8 @@ Technicians are the hands-on ICT staff who fix equipment. They can:
 - Add, edit, and delete assets.
 - Review the fault queue and update fault statuses.
 - Create and update maintenance records (they are auto-assigned as the technician).
-- Move assets between departments.
+- Move assets between departments and mark allocations as returned.
+- Manage software assets and update service requests.
 - Generate and export reports.
 
 They **cannot** manage other users — that is admin-only.
@@ -103,9 +108,10 @@ These are ordinary staff members representing their department. They have the mo
 - Report faults on equipment in their department.
 - View fault reports related to their department.
 - View maintenance records and allocation history (read-only).
+- **Submit service requests** for their department.
 - Generate reports (read-only).
 
-They **cannot** add or edit assets, create maintenance records, or move assets.
+They **cannot** add or edit assets, create maintenance records, move assets, or manage software licences.
 
 ### How the System Decides What to Show
 
@@ -224,7 +230,7 @@ A database is a structured collection of information, like a very sophisticated 
 
 ### 6.2 The Tables
 
-This system has **7 tables**. Here is what each one stores:
+This system has **9 tables**. Here is what each one stores:
 
 #### `departments`
 Stores the university's departments.
@@ -333,8 +339,51 @@ Stores the history of asset movements between departments.
 | from_department_id | Where it came from | (links to departments) |
 | to_department_id | Where it went to | (links to departments) |
 | allocated_by | Who approved the move | (links to profiles) |
+| assigned_to | Person receiving the asset | "Blessing Moyo" |
+| return_date | Expected or actual return date | 2025-06-30 |
+| status | Current allocation status | "active" / "returned" / "cancelled" |
 | notes | Reason for the move | "Needed in new lab" |
 | created_at | When the move happened | 2024-06-15 10:30:00 |
+
+---
+
+#### `software_assets`
+Stores all software licences managed by the ICT department.
+
+| Column | What It Stores | Example |
+|---|---|---|
+| id | Unique identifier | `s1t2u3v4-...` |
+| name | Software name | "Microsoft Office 365" |
+| vendor | Software manufacturer | "Microsoft" |
+| version | Version number | "365" |
+| license_key | Licence key (stored securely) | "XXXXX-XXXXX-..." |
+| license_type | Type of licence | "perpetual" / "subscription" / "open_source" / "freeware" |
+| total_seats | Number of user seats | 50 |
+| department_id | Which department uses it (NULL = university-wide) | (links to departments) |
+| status | Current licence status | "active" / "expired" / "discontinued" |
+| purchase_date | When it was purchased | 2024-01-01 |
+| license_expiry | When the licence expires | 2025-12-31 |
+| cost | Licence cost in USD | 4500.00 |
+| notes | Additional details | "University-wide volume licence" |
+
+---
+
+#### `service_requests`
+Stores formal ICT service requests raised by staff.
+
+| Column | What It Stores | Example |
+|---|---|---|
+| id | Unique identifier | `r1q2p3o4-...` |
+| title | Short title | "10 New Desktops for CS Lab" |
+| request_type | Category of request | "new_equipment" / "repair" / "software" / "network" / "support" / "other" |
+| description | Full description of the need | "Lab is at full capacity..." |
+| priority | How urgent | "low" / "medium" / "high" / "critical" |
+| status | Current progress | "pending" / "approved" / "rejected" / "in_progress" / "fulfilled" |
+| department_id | Requesting department | (links to departments) |
+| requested_by | Who submitted the request | (links to profiles) |
+| assigned_to | Which technician is handling it | (links to profiles) |
+| admin_notes | Notes from admin/technician | "Procurement order raised" |
+| created_at | When submitted | 2025-04-10 09:00:00 |
 
 ---
 
@@ -373,6 +422,8 @@ The tables are linked together using **foreign keys** — a column in one table 
 - A **fault report** references an **asset** and the **user** who reported it.
 - A **maintenance record** references an **asset**, optionally a **fault report**, and the **technician**.
 - An **allocation** references an **asset**, a **from department**, a **to department**, and the **user** who approved it.
+- A **software asset** optionally belongs to a specific **department** (NULL = university-wide).
+- A **service request** belongs to a **department** and references the **user** who submitted it.
 - A **profile (user)** belongs to a **department**.
 
 ---
@@ -441,6 +492,19 @@ Four coloured cards showing:
 - **Faulty** (red) — count and percentage of total
 - **Under Maintenance** (amber) — count and percentage of total
 - **Disposed** (grey) — count and percentage of total
+
+#### System Alerts Panel
+A live alert feed at the bottom of the dashboard that automatically highlights items requiring attention:
+
+| Alert Type | Trigger Condition | Colour |
+|---|---|---|
+| **Warranty Expiring** | An asset's warranty expires within 30 days | Amber |
+| **Warranty Expired** | An asset's warranty has already passed | Red |
+| **Licence Expiring** | A software licence expires within 30 days | Amber |
+| **Licence Expired** | A software licence has already expired | Red |
+| **Overdue Maintenance** | A maintenance record is still "in_progress" after its scheduled date | Red |
+
+No alerts are shown if everything is current. This panel runs automatically every time the dashboard loads.
 
 ---
 
@@ -601,12 +665,19 @@ This module tracks when assets are moved between departments.
 Displays all allocation records with:
 - **ID** — short identifier
 - **Asset** — name and asset tag
-- **From** — the department the asset came from
-- **To** — the department the asset moved to
+- **Movement** — compact from → to department display
+- **Assigned To** — the person receiving the asset
 - **Allocated By** — who approved the move
+- **Status** — colour-coded badge (Active, Returned, Cancelled)
 - **Date** — when it happened
-- **Notes** — reason for the move
-- **Actions** — View button
+- **Actions** — View button, and a "Mark Returned" button for active allocations
+
+#### Filters
+Above the table, four filters are available:
+- **Search** — by asset name or assigned person
+- **From Department** — filter by source department
+- **To Department** — filter by destination department
+- **Status** — filter by allocation status (All, Active, Returned, Cancelled)
 
 #### Recording an Allocation
 1. Click **"Record Allocation"** (admins and technicians only).
@@ -614,19 +685,27 @@ Displays all allocation records with:
    - **Asset** (dropdown)
    - **From Department** (auto-filled based on the asset's current department, but editable)
    - **To Department** (required)
+   - **Assigned To** (name of the person receiving the asset)
+   - **Expected Return Date** (optional — leave blank for permanent transfers)
    - **Notes** (reason for the move)
 3. Click **Save**.
 4. The system:
-   - Inserts a new row in the `allocations` table
+   - Inserts a new row in the `allocations` table with status "active"
    - Automatically **updates the asset's department** to the new "To" department
    - Records the current user as `allocated_by`
+
+#### Marking an Allocation as Returned
+1. Click the **green tick icon** on any active allocation row (admins and technicians only).
+2. A confirmation dialog appears.
+3. The system automatically sets the allocation `status` to "returned" and records today's date as the `return_date`.
 
 #### Viewing Allocation Details
 Clicking the eye icon shows a detailed view with:
 - Asset information (name, tag, current status)
 - Movement details (from → to, with department names)
+- Assigned person and expected/actual return date
 - Who approved it and when
-- Any notes
+- Current allocation status and any notes
 
 ---
 
@@ -711,6 +790,93 @@ Displays all system users with:
 2. The system sets `is_active` to `false` (or `true`).
 3. A deactivated user **can no longer log in** — the login page checks `is_active` and rejects deactivated accounts even if the password is correct.
 
+### 7.9 Software Asset Tracking
+
+**Files:** `software.html` + `software.js`
+
+This module provides a centralised register of all software licences owned by the university.
+
+#### The Software Table
+Displays all software assets with:
+- **Name** — software title
+- **Vendor** — manufacturer/publisher
+- **Version** — release version
+- **Licence Type** — colour-coded badge (Perpetual, Subscription, Open Source, Freeware)
+- **Seats** — number of users the licence covers
+- **Department** — which department it belongs to (or "University-Wide")
+- **Expiry Date** — when the licence expires ("No Expiry" for perpetual licences)
+- **Status** — colour-coded badge (Active, Expired, Discontinued)
+- **Actions** — View, Edit, and Delete buttons
+
+#### Licence Expiry Warnings
+When a software licence expires within **30 days**, the expiry date cell automatically turns amber with a warning icon. When it is already expired, it turns red. This gives ICT staff an at-a-glance view of upcoming renewals without waiting for a report.
+
+#### Adding a Software Asset
+1. Click **"Add Software"** (admins and technicians only).
+2. Fill in:
+   - **Name** (required)
+   - **Vendor**
+   - **Version**
+   - **Licence Key** (stored as text)
+   - **Licence Type** (Perpetual, Subscription, Open Source, or Freeware)
+   - **Total Seats** (number of licences)
+   - **Department** (leave blank for university-wide)
+   - **Status** (Active, Expired, or Discontinued)
+   - **Purchase Date** and **Licence Expiry Date**
+   - **Cost** (in USD)
+   - **Notes**
+3. Click **Save**.
+
+#### Dashboard Integration
+The Dashboard's **System Alerts** panel automatically reads the `software_assets` table and flags any licences expiring within 30 days or already expired, so ICT staff are notified without needing to open this page.
+
+---
+
+### 7.10 Service Requests
+
+**Files:** `service_requests.html` + `service_requests.js`
+
+This module replaces informal verbal or email requests with a structured, trackable system for all ICT service needs.
+
+#### The Service Requests Table
+Displays all requests with:
+- **ID** — short identifier
+- **Title** — brief description of the request
+- **Type** — colour-coded badge (New Equipment, Repair, Software, Network, Support, Other)
+- **Priority** — Low, Medium, High, or Critical (colour-coded)
+- **Department** — which department submitted the request
+- **Status** — Pending, Approved, Rejected, In Progress, or Fulfilled (colour-coded)
+- **Date** — when submitted
+- **Actions** — View and Edit buttons
+
+#### Filters
+Above the table, four filters allow narrowing the view:
+- **Search** — by title keyword
+- **Type** — filter by request category
+- **Priority** — filter by urgency level
+- **Status** — filter by current progress
+
+#### Submitting a Service Request
+1. Click **"New Request"** (available to all users).
+2. Fill in:
+   - **Title** (required)
+   - **Request Type** (New Equipment, Repair, Software, Network, Support, or Other)
+   - **Priority** (Low, Medium, High, Critical)
+   - **Department** (auto-filled from the user's department)
+   - **Description** (required — full explanation of the need)
+3. Click **Submit**.
+4. The system inserts the request with status **"pending"** and records the submitting user.
+
+#### Processing a Request (Admins/Technicians)
+1. Click the pencil icon to edit any request.
+2. Change the **status** to reflect progress:
+   - **Approved** — management has approved the request
+   - **In Progress** — work has started or items are on order
+   - **Fulfilled** — the request has been completely handled
+   - **Rejected** — the request was declined
+3. Add **admin notes** to explain decisions or provide updates.
+4. Assign a **technician** to the request if hands-on work is needed.
+
 ---
 
 ## 8. File Structure
@@ -719,33 +885,43 @@ Displays all system users with:
 📁 Resource Management System for the University of Zimbabwe/
 │
 ├── 📄 index.html              ← Login page
-├── 📄 dashboard.html          ← Dashboard (metrics overview)
+├── 📄 dashboard.html          ← Dashboard (metrics overview + system alerts)
 ├── 📄 assets.html             ← Asset management page
 ├── 📄 faults.html             ← Fault reporting page
 ├── 📄 maintenance.html        ← Maintenance tracking page
 ├── 📄 allocations.html        ← Allocation & movement page
 ├── 📄 reports.html            ← Reports generation page
 ├── 📄 users.html              ← User management page (admin only)
+├── 📄 software.html           ← Software asset tracking page
+├── 📄 service_requests.html   ← Service requests page
 │
 ├── 📁 css/
-│   └── 📄 style.css           ← All custom styling (colours, layout, fonts)
+│   └── 📄 style.css           ← All custom styling (UZ brand colours, layout, fonts)
+│
+├── 📁 images/
+│   └── 📄 uz-logo.png         ← University of Zimbabwe coat of arms (sidebar & login)
 │
 ├── 📁 js/
 │   ├── 📄 config.js           ← Supabase connection + shared utility functions
 │   ├── 📄 auth.js             ← Login, logout, session management, role checks
 │   ├── 📄 sidebar.js          ← Sidebar navigation (injected into every page)
-│   ├── 📄 dashboard.js        ← Dashboard data loading and display
+│   ├── 📄 dashboard.js        ← Dashboard data loading, display, and system alerts
 │   ├── 📄 assets.js           ← Asset CRUD operations (Create, Read, Update, Delete)
 │   ├── 📄 faults.js           ← Fault report operations
 │   ├── 📄 maintenance.js      ← Maintenance record operations
-│   ├── 📄 allocations.js      ← Allocation/movement operations
+│   ├── 📄 allocations.js      ← Allocation/movement operations (inc. Mark Returned)
 │   ├── 📄 reports.js          ← Report generation and export
-│   └── 📄 users.js            ← User management operations
+│   ├── 📄 users.js            ← User management operations
+│   ├── 📄 software.js         ← Software asset CRUD + licence expiry warnings
+│   └── 📄 service_requests.js ← Service request submission and management
 │
 ├── 📁 database/
-│   └── 📄 schema.sql          ← Database structure (tables, security policies, sample data)
+│   ├── 📄 schema.sql          ← Core database structure (tables, RLS policies, seed data)
+│   ├── 📄 updates.sql         ← Schema additions: software_assets, service_requests tables; allocations fields
+│   └── 📄 mock_data.sql       ← Demo data: 6 users, 30 assets, faults, maintenance, allocations, software, requests
 │
 ├── 📄 PRD.md                  ← Product Requirements Document
+├── 📄 SYSTEM_DOCUMENTATION.md ← This file
 └── 📄 README.md               ← Setup instructions
 ```
 
@@ -756,13 +932,15 @@ Displays all system users with:
 | **config.js** | Connects to Supabase, defines constants (roles, statuses, priorities), provides shared helper functions (format dates, format currency, show alerts, show loading spinner, escape HTML to prevent security issues) |
 | **auth.js** | Checks if the user is logged in on every page load, fetches the user's profile, updates the UI with the user's name and initials, shows/hides elements based on role, handles the login form, handles logout, listens for session changes |
 | **sidebar.js** | Contains the sidebar HTML template, injects it into the page, highlights the current page in the navigation, provides `updateUserAvatar()` function |
-| **dashboard.js** | Queries asset counts by status, queries fault counts, loads category breakdown data, loads recent faults, updates all dashboard UI elements |
+| **dashboard.js** | Queries asset counts by status, queries fault counts, loads category breakdown data, loads recent faults, loads system alerts (warranty/licence expiry, overdue maintenance), updates all dashboard UI elements |
 | **assets.js** | Loads and filters assets, opens add/edit/view/delete modals, handles form submission, populates dropdowns with categories and departments |
 | **faults.js** | Loads and filters fault reports, handles fault submission, auto-sets asset status to "faulty", handles fault editing including status changes and resolution notes |
 | **maintenance.js** | Loads and filters maintenance records, handles record creation (auto-assigns technician), handles completion (auto-updates asset and linked fault status), populates dropdowns with assets and fault reports |
-| **allocations.js** | Loads allocation history, handles new allocation submission, auto-updates the asset's department after a move, populates department dropdowns |
+| **allocations.js** | Loads and filters allocation history, handles new allocation submission (with assigned_to and return_date), auto-updates the asset's department after a move, handles "Mark Returned" action, populates department dropdowns |
 | **reports.js** | Contains six data-fetching functions (one per report type), formats data into table rows, renders the report table, handles HTML and CSV export |
 | **users.js** | Loads user list, handles user creation (creates auth user + updates profile), handles editing, handles activate/deactivate toggle |
+| **software.js** | Loads and filters software assets, handles CRUD operations, displays licence expiry warnings with colour coding, populates department dropdowns |
+| **service_requests.js** | Loads and filters service requests, handles submission by all roles, handles status updates by admins/technicians, manages admin notes and assigned technician fields |
 
 ---
 
@@ -869,7 +1047,7 @@ There are **two layers** of access control:
 
 - Required fields are enforced both in the **HTML forms** (the browser will not submit without them) and in the **database** (columns marked `NOT NULL` will reject empty values).
 - Status fields are restricted to specific allowed values using **database CHECK constraints** (e.g., asset status can only be "active", "faulty", "under_maintenance", or "disposed").
-- Text entered by users is **escaped** before being displayed, preventing Cross-Site Scripting (XSS) attacks — a type of security vulnerability where malicious code could be injected through form fields.
+- Text entered by users is **escaped** before being displayed, preventing Cross-Site Scripting (XSS) attacks — a type of security vulnerability where malicious code could be injected through form fields. The system prevents this by escaping all user-entered text before displaying it.
 
 ---
 
@@ -901,6 +1079,17 @@ There are **two layers** of access control:
 ---
 
 ## End of Document
+
+---
+
+## Change Log
+
+| Version | Date | Changes |
+|---|---|---|
+| **1.0.0** | March 2026 | Initial release — Assets, Faults, Maintenance, Allocations, Reports, User Management |
+| **1.1.0** | April 2026 | Added Software Asset Tracking module; added Service Requests module; added Dashboard System Alerts; updated Allocations with assigned_to, return_date, status fields and Mark Returned action; applied UZ brand colours (deep purple + orange) and UZ coat of arms logo |
+
+---
 
 *This documentation was prepared for the Centralized ICT Resource Management System — University of Zimbabwe.*
 *For technical setup instructions, refer to the README.md file in the project root.*

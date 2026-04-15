@@ -26,7 +26,7 @@ function setupEventListeners() {
         searchInput.addEventListener('input', debounce(() => loadAllocations(), 300));
     }
     
-    ['filterFromDept', 'filterToDept'].forEach(id => {
+    ['filterStatus', 'filterFromDept', 'filterToDept'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => loadAllocations());
@@ -130,11 +130,15 @@ async function loadAllocations() {
         
         // Apply filters
         const search = document.getElementById('searchInput')?.value?.trim();
+        const filterStatus = document.getElementById('filterStatus')?.value;
         const fromDept = document.getElementById('filterFromDept')?.value;
         const toDept = document.getElementById('filterToDept')?.value;
         
         if (search) {
-            query = query.or(`notes.ilike.%${search}%`);
+            query = query.or(`notes.ilike.%${search}%,assigned_to.ilike.%${search}%`);
+        }
+        if (filterStatus) {
+            query = query.eq('status', filterStatus);
         }
         if (fromDept) {
             query = query.eq('from_department_id', fromDept);
@@ -152,28 +156,38 @@ async function loadAllocations() {
             return;
         }
         
-        tbody.innerHTML = allocations.map(allocation => `
+        const statusMap = { active: 'badge-active', returned: 'badge-returned', cancelled: 'badge-cancelled' };
+
+        tbody.innerHTML = allocations.map(allocation => {
+            const allocationStatus = allocation.status || 'active';
+            return `
             <tr>
                 <td><span class="fw-medium">#${allocation.id.substring(0, 8)}</span></td>
                 <td>
                     <span class="fw-medium">${escapeHtml(allocation.ict_assets?.name || 'Unknown')}</span>
                     <br><small class="text-muted">${escapeHtml(allocation.ict_assets?.asset_tag || '')}</small>
                 </td>
-                <td>${escapeHtml(allocation.from_department?.name || 'N/A')}</td>
                 <td>
-                    <i class="bi bi-arrow-right text-primary me-2"></i>
-                    ${escapeHtml(allocation.to_department?.name || 'N/A')}
+                    <small class="text-muted">${escapeHtml(allocation.from_department?.name || 'N/A')}</small>
+                    <i class="bi bi-arrow-right mx-1 text-primary" style="font-size:10px;"></i>
+                    <small class="fw-medium">${escapeHtml(allocation.to_department?.name || 'N/A')}</small>
                 </td>
+                <td>${escapeHtml(allocation.assigned_to || '-')}</td>
                 <td>${escapeHtml(allocation.allocated_by?.full_name || '-')}</td>
+                <td><span class="badge badge-${allocationStatus}">${formatStatus(allocationStatus)}</span></td>
                 <td><small>${formatDate(allocation.created_at)}</small></td>
-                <td class="text-truncate" style="max-width: 150px;">${escapeHtml(allocation.notes || '-')}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary btn-action" onclick="viewAllocation('${allocation.id}')" title="View">
                         <i class="bi bi-eye"></i>
                     </button>
+                    ${(isAdmin() || isTechnician()) && allocationStatus === 'active' ? `
+                        <button class="btn btn-sm btn-outline-success btn-action" onclick="markReturned('${allocation.id}')" title="Mark Returned">
+                            <i class="bi bi-check2-circle"></i>
+                        </button>
+                    ` : ''}
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
         
     } catch (error) {
         console.error('Load allocations error:', error);
@@ -184,6 +198,7 @@ async function loadAllocations() {
 
 function clearFilters() {
     document.getElementById('searchInput').value = '';
+    document.getElementById('filterStatus').value = '';
     document.getElementById('filterFromDept').value = '';
     document.getElementById('filterToDept').value = '';
     loadAllocations();
@@ -194,6 +209,8 @@ function openAddAllocationModal() {
     document.getElementById('allocationForm').reset();
     document.getElementById('allocationId').value = '';
     document.getElementById('currentDeptText').textContent = '';
+    document.getElementById('allocationAssignedTo').value = '';
+    document.getElementById('allocationReturnDate').value = '';
     const modal = new bootstrap.Modal(document.getElementById('allocationModal'));
     modal.show();
 }
@@ -216,6 +233,7 @@ async function viewAllocation(id) {
         
         if (error) throw error;
         
+        const allocationStatus = allocation.status || 'active';
         const body = document.getElementById('viewAllocationBody');
         body.innerHTML = `
             <div class="text-center mb-4">
@@ -240,8 +258,12 @@ async function viewAllocation(id) {
                 <tr><th width="35%">Allocation ID</th><td>#${allocation.id.substring(0, 8)}</td></tr>
                 <tr><th>Asset</th><td>${escapeHtml(allocation.ict_assets?.name || 'Unknown')} (${escapeHtml(allocation.ict_assets?.asset_tag || '')})</td></tr>
                 <tr><th>Asset Status</th><td><span class="badge ${getStatusBadgeClass(allocation.ict_assets?.status)}">${formatStatus(allocation.ict_assets?.status)}</span></td></tr>
+                <tr><th>Allocation Status</th><td><span class="badge badge-${allocationStatus}">${formatStatus(allocationStatus)}</span></td></tr>
+                <tr><th>Assigned To</th><td>${escapeHtml(allocation.assigned_to || '-')}</td></tr>
                 <tr><th>Allocated By</th><td>${escapeHtml(allocation.allocated_by?.full_name || '-')}</td></tr>
-                <tr><th>Date</th><td>${formatDateTime(allocation.created_at)}</td></tr>
+                <tr><th>Allocation Date</th><td>${formatDateTime(allocation.created_at)}</td></tr>
+                <tr><th>Expected Return</th><td>${allocation.return_date ? formatDate(allocation.return_date) : 'Permanent transfer'}</td></tr>
+                ${allocation.return_date && allocationStatus === 'returned' ? `<tr><th>Returned On</th><td>${formatDate(allocation.return_date)}</td></tr>` : ''}
             </table>
             
             ${allocation.notes ? `
@@ -256,6 +278,25 @@ async function viewAllocation(id) {
     } catch (error) {
         console.error('View allocation error:', error);
         showAlert('Error loading allocation details', 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function markReturned(id) {
+    if (!confirm('Mark this allocation as returned?')) return;
+    try {
+        showLoading(true);
+        const { error } = await db
+            .from('allocations')
+            .update({ status: 'returned', return_date: new Date().toISOString().split('T')[0] })
+            .eq('id', id);
+        if (error) throw error;
+        showAlert('Allocation marked as returned', 'success');
+        await loadAllocations();
+    } catch (error) {
+        console.error('Mark returned error:', error);
+        showAlert('Error updating allocation', 'danger');
     } finally {
         showLoading(false);
     }
@@ -281,6 +322,9 @@ async function handleAllocationSubmit(e) {
         from_department_id: fromDeptId || null,
         to_department_id: toDeptId,
         allocated_by: currentUser.id,
+        assigned_to: document.getElementById('allocationAssignedTo').value.trim() || null,
+        return_date: document.getElementById('allocationReturnDate').value || null,
+        status: 'active',
         notes: document.getElementById('allocationNotes').value.trim() || null
     };
     
@@ -304,8 +348,6 @@ async function handleAllocationSubmit(e) {
         
         bootstrap.Modal.getInstance(document.getElementById('allocationModal')).hide();
         showAlert('Asset transferred successfully', 'success');
-        
-        // Reload data
         await loadAssetsForDropdown();
         await loadAllocations();
         

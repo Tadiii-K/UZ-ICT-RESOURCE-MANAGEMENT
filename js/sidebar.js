@@ -25,6 +25,9 @@ function initSidebar(activePage) {
                     <a href="assets.html" class="nav-item ${activePage === 'assets' ? 'active' : ''}">
                         <i class="bi bi-hdd-stack"></i><span>Asset Register</span>
                     </a>
+                    <a href="software.html" class="nav-item ${activePage === 'software' ? 'active' : ''}">
+                        <i class="bi bi-file-earmark-code"></i><span>Software Assets</span>
+                    </a>
                     <a href="allocations.html" class="nav-item ${activePage === 'allocations' ? 'active' : ''}">
                         <i class="bi bi-arrow-left-right"></i><span>Allocation & Movement</span>
                     </a>
@@ -36,6 +39,9 @@ function initSidebar(activePage) {
                     </a>
                     <a href="maintenance.html" class="nav-item ${activePage === 'maintenance' ? 'active' : ''}">
                         <i class="bi bi-tools"></i><span>Maintenance</span>
+                    </a>
+                    <a href="service_requests.html" class="nav-item ${activePage === 'service_requests' ? 'active' : ''}">
+                        <i class="bi bi-clipboard-plus"></i><span>Service Requests</span>
                     </a>
                 </div>
                 <div class="nav-section">

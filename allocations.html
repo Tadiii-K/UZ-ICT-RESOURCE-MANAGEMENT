@@ -14,7 +14,7 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-brand">
-                    <div class="sidebar-logo"><i class="bi bi-hdd-network"></i></div>
+                    <div class="sidebar-logo"><img src="images/uz-logo.png" alt="UZ"></div>
                     <div>
                         <h1 class="sidebar-title">UZ ICT System</h1>
                         <p class="sidebar-subtitle">Resource Management</p>
@@ -29,12 +29,14 @@
                 <div class="nav-section">
                     <div class="nav-section-label">Assets</div>
                     <a href="assets.html" class="nav-item"><i class="bi bi-hdd-stack"></i><span>Asset Register</span></a>
+                    <a href="software.html" class="nav-item"><i class="bi bi-file-earmark-code"></i><span>Software Assets</span></a>
                     <a href="allocations.html" class="nav-item active"><i class="bi bi-arrow-left-right"></i><span>Allocation & Movement</span></a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Operations</div>
                     <a href="faults.html" class="nav-item"><i class="bi bi-exclamation-triangle"></i><span>Fault Reporting</span></a>
                     <a href="maintenance.html" class="nav-item"><i class="bi bi-tools"></i><span>Maintenance</span></a>
+                    <a href="service_requests.html" class="nav-item"><i class="bi bi-clipboard-plus"></i><span>Service Requests</span></a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Admin</div>
@@ -75,6 +77,12 @@
                 <!-- Filters -->
                 <div class="toolbar">
                     <input type="text" class="form-control search-input" id="searchInput" placeholder="Search allocations...">
+                    <select class="form-select filter-select" id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="returned">Returned</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
                     <select class="form-select filter-select" id="filterFromDept">
                         <option value="">From Department</option>
                     </select>
@@ -91,16 +99,16 @@
                                 <tr>
                                     <th>ID</th>
                                     <th>Asset</th>
-                                    <th>From</th>
-                                    <th>To</th>
+                                    <th>Movement</th>
+                                    <th>Assigned To</th>
                                     <th>Allocated By</th>
+                                    <th>Status</th>
                                     <th>Date</th>
-                                    <th>Notes</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="allocationsTableBody">
-                                <tr><td colspan="8" class="text-center text-muted" style="padding: 40px;">Loading allocations...</td></tr>
+                                <tr><td colspan="8" class="text-center text-muted" style="padding: 40px;">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -134,9 +142,18 @@
                                     <option value="">Select Department</option>
                                 </select>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Assigned To</label>
+                                <input type="text" class="form-control" id="allocationAssignedTo" placeholder="Person receiving the asset">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Expected Return Date</label>
+                                <input type="date" class="form-control" id="allocationReturnDate">
+                                <div class="form-text">Leave blank for permanent transfers</div>
+                            </div>
                             <div class="col-12">
                                 <label class="form-label">Notes</label>
-                                <textarea class="form-control" id="allocationNotes" rows="3" placeholder="Reason for transfer..."></textarea>
+                                <textarea class="form-control" id="allocationNotes" rows="2" placeholder="Reason for transfer..."></textarea>
                             </div>
                         </div>
                     </div>
