@@ -1,7 +1,7 @@
 // Supabase Configuration
 // Replace these with your actual Supabase project credentials
-const SUPABASE_URL = 'https://nshlfgudcneclpiuxhkd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zaGxmZ3VkY25lY2xwaXV4aGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzE0MTYsImV4cCI6MjA5MTMwNzQxNn0.pR2Es4F_T6aQHDSv9xyB6KnBMmcRGik_4YsPgNiep8Q';
+const SUPABASE_URL = 'https://vzdrhsdothuvoepfrdli.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6ZHJoc2RvdGh1dm9lcGZyZGxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTkzNDMsImV4cCI6MjA5MTc5NTM0M30.I9G74hvQjPgYfq9Wsu_LL64VIj4yErQfxEMZJKY2d5A';
 
 // Initialize Supabase client - using the global 'supabase' from the CDN
 const _supabaseLib = window.supabase;
@@ -20,6 +20,23 @@ const ROLES = {
     ADMIN: 'admin',
     TECHNICIAN: 'technician',
     DEPARTMENT_REP: 'department_rep'
+};
+
+// =========================================================
+// PAGE ACCESS MATRIX
+// Defines which roles may open each page. If the user's role
+// is not in the list, auth.js redirects them to the dashboard.
+// =========================================================
+const PAGE_ACCESS = {
+    'dashboard.html':        [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'assets.html':           [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'faults.html':           [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'maintenance.html':      [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'allocations.html':      [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'service_requests.html': [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'reports.html':          [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
+    'software.html':         [ROLES.ADMIN, ROLES.TECHNICIAN],   // dept reps blocked
+    'users.html':            [ROLES.ADMIN]                       // admin only
 };
 
 // Status definitions

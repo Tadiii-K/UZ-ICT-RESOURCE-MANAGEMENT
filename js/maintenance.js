@@ -133,7 +133,21 @@ async function loadMaintenance() {
         if (type) {
             query = query.eq('maintenance_type', type);
         }
-        
+
+        // Department reps can only see maintenance records for their department's assets
+        if (isDepartmentRep() && currentProfile.department_id) {
+            const { data: deptAssets } = await db
+                .from('ict_assets')
+                .select('id')
+                .eq('department_id', currentProfile.department_id);
+            const deptAssetIds = (deptAssets || []).map(a => a.id);
+            if (deptAssetIds.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No maintenance records found</td></tr>';
+                return;
+            }
+            query = query.in('asset_id', deptAssetIds);
+        }
+
         const { data: records, error } = await query;
         
         if (error) throw error;

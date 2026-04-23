@@ -82,33 +82,70 @@ function updateUserUI() {
 
 function checkRoleAccess() {
     if (!currentProfile) return;
-    
+
     const role = currentProfile.role;
-    
-    // Show admin-only elements
-    if (role === ROLES.ADMIN) {
-        document.querySelectorAll('.admin-only').forEach(el => {
-            el.classList.remove('d-none');
-        });
-    }
-    
-    // Show technician-only elements
-    if (role === ROLES.ADMIN || role === ROLES.TECHNICIAN) {
-        document.querySelectorAll('.technician-only').forEach(el => {
-            el.classList.remove('d-none');
-        });
-        document.querySelectorAll('.admin-technician-only').forEach(el => {
-            el.classList.remove('d-none');
-        });
-    }
-    
-    // Check page access
-    const currentPage = window.location.pathname.split('/').pop();
-    
-    if (currentPage === 'users.html' && role !== ROLES.ADMIN) {
+
+    // -----------------------------------------------------------------
+    // 1. PAGE-LEVEL GUARD
+    // Redirect users who try to open a page their role does not allow.
+    // -----------------------------------------------------------------
+    const currentPage = (window.location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
+    const allowedRoles = PAGE_ACCESS[currentPage];
+    if (allowedRoles && !allowedRoles.includes(role)) {
+        showAlert('You do not have permission to access that page.', 'warning');
         window.location.href = 'dashboard.html';
         return;
     }
+
+    // -----------------------------------------------------------------
+    // 2. ELEMENT-LEVEL VISIBILITY (role-specific buttons / links)
+    // Elements carry one of these classes and are hidden by default
+    // with `d-none`; we reveal only what the current role may use.
+    // -----------------------------------------------------------------
+    if (role === ROLES.ADMIN) {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none'));
+    }
+
+    if (role === ROLES.ADMIN || role === ROLES.TECHNICIAN) {
+        document.querySelectorAll('.technician-only').forEach(el => el.classList.remove('d-none'));
+        document.querySelectorAll('.admin-technician-only').forEach(el => el.classList.remove('d-none'));
+    }
+
+    if (role === ROLES.DEPARTMENT_REP) {
+        document.querySelectorAll('.department-rep-only').forEach(el => el.classList.remove('d-none'));
+    }
+
+    // Everyone logged in sees this
+    document.querySelectorAll('.authenticated-only').forEach(el => el.classList.remove('d-none'));
+
+    // Reveal the page body (kept hidden until role is verified to avoid
+    // a flash of restricted content).
+    document.body.classList.remove('pre-auth');
+}
+
+// -----------------------------------------------------------------
+// Page-guard helper for JS modules to call at the top of their init.
+// Usage: requireRole(ROLES.ADMIN, ROLES.TECHNICIAN)
+// -----------------------------------------------------------------
+function requireRole(...allowedRoles) {
+    if (!currentProfile) return false;
+    if (!allowedRoles.includes(currentProfile.role)) {
+        window.location.href = 'dashboard.html';
+        return false;
+    }
+    return true;
+}
+
+// -----------------------------------------------------------------
+// Data-scope helper: returns a Supabase query filter object
+// that dept reps should apply to restrict data to their department.
+// Returns null for admins/technicians (no scoping).
+// -----------------------------------------------------------------
+function getDepartmentScope() {
+    if (currentProfile?.role === ROLES.DEPARTMENT_REP) {
+        return currentProfile.department_id || null;
+    }
+    return null;
 }
 
 // Login form handler

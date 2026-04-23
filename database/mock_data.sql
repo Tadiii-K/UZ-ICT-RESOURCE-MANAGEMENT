@@ -104,7 +104,7 @@ BEGIN
     ) VALUES
     (v_admin_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
      'admin@uz.ac.zw',   crypt('Password123!', gen_salt('bf')), NOW(),
-     '{"provider":"email","providers":["email"]}', '{"full_name":"John Musiyiwa"}',
+     '{"provider":"email","providers":["email"]}', '{"full_name":"Tadiwa Karonga"}',
      FALSE, NOW() - INTERVAL '6 months', NOW()),
 
     (v_tech_id,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
@@ -144,7 +144,7 @@ BEGIN
     -- Upsert profiles using the resolved IDs
     INSERT INTO profiles (id, email, full_name, role, department_id)
     VALUES
-        (v_admin_id, 'admin@uz.ac.zw',   'John Musiyiwa',    'admin',          v_ict_dept),
+        (v_admin_id, 'admin@uz.ac.zw',   'Tadiwa Karonga',   'admin',          v_ict_dept),
         (v_tech_id,  'tech@uz.ac.zw',    'Tatenda Chiweshe', 'technician',     v_ict_dept),
         (v_cs_rep,   'cs.rep@uz.ac.zw',  'Blessing Moyo',    'department_rep', v_cs_dept),
         (v_is_rep,   'is.rep@uz.ac.zw',  'Chipo Zvakavapano','department_rep', v_is_dept),

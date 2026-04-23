@@ -146,7 +146,13 @@ async function loadAllocations() {
         if (toDept) {
             query = query.eq('to_department_id', toDept);
         }
-        
+
+        // Department reps only see allocations involving their department (from OR to)
+        if (isDepartmentRep() && currentProfile.department_id) {
+            const deptId = currentProfile.department_id;
+            query = query.or(`from_department_id.eq.${deptId},to_department_id.eq.${deptId}`);
+        }
+
         const { data: allocations, error } = await query;
         
         if (error) throw error;

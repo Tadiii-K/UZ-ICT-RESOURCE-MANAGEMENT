@@ -25,7 +25,7 @@ function initSidebar(activePage) {
                     <a href="assets.html" class="nav-item ${activePage === 'assets' ? 'active' : ''}">
                         <i class="bi bi-hdd-stack"></i><span>Asset Register</span>
                     </a>
-                    <a href="software.html" class="nav-item ${activePage === 'software' ? 'active' : ''}">
+                    <a href="software.html" class="nav-item admin-technician-only d-none ${activePage === 'software' ? 'active' : ''}">
                         <i class="bi bi-file-earmark-code"></i><span>Software Assets</span>
                     </a>
                     <a href="allocations.html" class="nav-item ${activePage === 'allocations' ? 'active' : ''}">
