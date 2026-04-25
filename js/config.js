@@ -110,8 +110,16 @@ function getStatusBadgeClass(status) {
     return 'badge-' + status;
 }
 
+// Display-label overrides for raw DB status values.
+// Add an entry here when the user-facing label should differ from the
+// auto-generated Title-Cased version of the column value.
+const STATUS_DISPLAY_LABELS = {
+    'disposed': 'Inactive'
+};
+
 function formatStatus(status) {
     if (!status) return '-';
+    if (STATUS_DISPLAY_LABELS[status]) return STATUS_DISPLAY_LABELS[status];
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
