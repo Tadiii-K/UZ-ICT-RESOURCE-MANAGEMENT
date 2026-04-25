@@ -186,7 +186,7 @@ async function loadAllocations() {
                     <button class="btn btn-sm btn-outline-primary btn-action" onclick="viewAllocation('${allocation.id}')" title="View">
                         <i class="bi bi-eye"></i>
                     </button>
-                    ${(isAdmin() || isTechnician()) && allocationStatus === 'active' ? `
+                    ${isAdmin() && allocationStatus === 'active' ? `
                         <button class="btn btn-sm btn-outline-success btn-action" onclick="markReturned('${allocation.id}')" title="Mark Returned">
                             <i class="bi bi-check2-circle"></i>
                         </button>

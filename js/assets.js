@@ -160,7 +160,7 @@ async function loadAssets() {
                     <button class="btn btn-sm btn-outline-primary btn-action" onclick="viewAsset('${asset.id}')" title="View">
                         <i class="bi bi-eye"></i>
                     </button>
-                    ${isAdmin() || isTechnician() ? `
+                    ${isAdmin() ? `
                         <button class="btn btn-sm btn-outline-secondary btn-action" onclick="editAsset('${asset.id}')" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>

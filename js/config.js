@@ -35,7 +35,7 @@ const PAGE_ACCESS = {
     'allocations.html':      [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
     'service_requests.html': [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
     'reports.html':          [ROLES.ADMIN, ROLES.TECHNICIAN, ROLES.DEPARTMENT_REP],
-    'software.html':         [ROLES.ADMIN, ROLES.TECHNICIAN],   // dept reps blocked
+    'software.html':         [ROLES.ADMIN],                      // admin only — software is asset mgmt
     'users.html':            [ROLES.ADMIN]                       // admin only
 };
 

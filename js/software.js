@@ -95,7 +95,7 @@ async function loadSoftware() {
                     <button class="btn btn-sm btn-outline-primary btn-action" onclick="viewSoftware('${sw.id}')" title="View">
                         <i class="bi bi-eye"></i>
                     </button>
-                    ${isAdmin() || isTechnician() ? `
+                    ${isAdmin() ? `
                         <button class="btn btn-sm btn-outline-secondary btn-action" onclick="editSoftware('${sw.id}')" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
