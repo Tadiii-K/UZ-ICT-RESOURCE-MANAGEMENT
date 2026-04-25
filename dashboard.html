@@ -32,7 +32,7 @@
                 <div class="nav-section">
                     <div class="nav-section-label">Assets</div>
                     <a href="assets.html" class="nav-item"><i class="bi bi-hdd-stack"></i><span>Asset Register</span></a>
-                    <a href="software.html" class="nav-item"><i class="bi bi-file-earmark-code"></i><span>Software Assets</span></a>
+                    <a href="software.html" class="nav-item admin-technician-only d-none"><i class="bi bi-file-earmark-code"></i><span>Software Assets</span></a>
                     <a href="allocations.html" class="nav-item"><i class="bi bi-arrow-left-right"></i><span>Allocation & Movement</span></a>
                 </div>
                 <div class="nav-section">
@@ -94,7 +94,7 @@
                         <div class="metric-label">In Maintenance</div>
                         <div class="metric-value warning" id="underMaintenance">0</div>
                     </div>
-                    <div class="metric-card">
+                    <div class="metric-card" data-admin-metric>
                         <div class="metric-label">Disposed</div>
                         <div class="metric-value muted" id="disposedAssets">0</div>
                     </div>

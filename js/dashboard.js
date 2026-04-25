@@ -22,7 +22,10 @@ function updateUserAvatar() {
 async function loadDashboardData() {
     try {
         showLoading(true);
-        
+
+        // Personalise the dashboard subtitle per role
+        applyRoleBasedDashboardChrome();
+
         await Promise.all([
             loadAssetStats(),
             loadCategoryStats(),
@@ -30,7 +33,7 @@ async function loadDashboardData() {
             loadOpenFaultsCount(),
             loadSystemAlerts()
         ]);
-        
+
     } catch (error) {
         console.error('Dashboard load error:', error);
         showAlert('Error loading dashboard data', 'danger');
@@ -39,36 +42,61 @@ async function loadDashboardData() {
     }
 }
 
+// Adjust the dashboard heading/subtitle and hide irrelevant cards based on role
+function applyRoleBasedDashboardChrome() {
+    const subtitleEl = document.querySelector('.page-subtitle');
+    const titleEl = document.querySelector('.page-title');
+    const role = currentProfile?.role;
+    const deptName = currentProfile?.departments?.name;
+
+    if (role === ROLES.ADMIN) {
+        if (titleEl) titleEl.textContent = 'Admin Dashboard';
+        if (subtitleEl) subtitleEl.textContent = 'University-wide ICT resource overview';
+    } else if (role === ROLES.TECHNICIAN) {
+        if (titleEl) titleEl.textContent = 'Technician Dashboard';
+        if (subtitleEl) subtitleEl.textContent = 'Operational view — all departments';
+    } else if (role === ROLES.DEPARTMENT_REP) {
+        if (titleEl) titleEl.textContent = 'Department Dashboard';
+        if (subtitleEl) subtitleEl.textContent = `${deptName || 'Your department'} — ICT resources`;
+        // Dept reps should not see the "Disposed" stat (it's an admin concern)
+        document.querySelectorAll('[data-admin-metric]').forEach(el => el.style.display = 'none');
+    }
+}
+
+// Returns a Supabase query with `.eq('department_id', ...)` applied for dept reps
+function applyDeptScope(query) {
+    if (currentProfile?.role === ROLES.DEPARTMENT_REP && currentProfile.department_id) {
+        return query.eq('department_id', currentProfile.department_id);
+    }
+    return query;
+}
+
 async function loadAssetStats() {
     try {
-        // Total assets
-        const { count: totalCount } = await db
+        // Total assets (scoped by department for dept reps)
+        const { count: totalCount } = await applyDeptScope(db
             .from('ict_assets')
-            .select('*', { count: 'exact', head: true });
-        
-        // Active assets
-        const { count: activeCount } = await db
-            .from('ict_assets')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'active');
-        
-        // Faulty assets
-        const { count: faultyCount } = await db
+            .select('*', { count: 'exact', head: true }));
+
+        const { count: activeCount } = await applyDeptScope(db
             .from('ict_assets')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'faulty');
-        
-        // Under maintenance
-        const { count: maintenanceCount } = await db
+            .eq('status', 'active'));
+
+        const { count: faultyCount } = await applyDeptScope(db
             .from('ict_assets')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'under_maintenance');
-        
-        // Disposed
-        const { count: disposedCount } = await db
+            .eq('status', 'faulty'));
+
+        const { count: maintenanceCount } = await applyDeptScope(db
             .from('ict_assets')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'disposed');
+            .eq('status', 'under_maintenance'));
+
+        const { count: disposedCount } = await applyDeptScope(db
+            .from('ict_assets')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'disposed'));
         
         const total = totalCount || 0;
         const active = activeCount || 0;
@@ -104,11 +132,26 @@ async function loadAssetStats() {
 
 async function loadOpenFaultsCount() {
     try {
-        const { count } = await db
-            .from('fault_reports')
+        let assetIdFilter = null;
+        // Dept reps: only count faults on their department's assets
+        if (currentProfile?.role === ROLES.DEPARTMENT_REP && currentProfile.department_id) {
+            const { data: deptAssets } = await db
+                .from('ict_assets')
+                .select('id')
+                .eq('department_id', currentProfile.department_id);
+            assetIdFilter = (deptAssets || []).map(a => a.id);
+            if (assetIdFilter.length === 0) {
+                document.getElementById('openFaults').textContent = 0;
+                return;
+            }
+        }
+
+        let q = db.from('fault_reports')
             .select('*', { count: 'exact', head: true })
             .in('status', ['reported', 'in_progress']);
-        
+        if (assetIdFilter) q = q.in('asset_id', assetIdFilter);
+
+        const { count } = await q;
         document.getElementById('openFaults').textContent = count || 0;
     } catch (error) {
         console.error('Open faults count error:', error);
@@ -117,9 +160,9 @@ async function loadOpenFaultsCount() {
 
 async function loadCategoryStats() {
     try {
-        const { data: assets, error } = await db
+        const { data: assets, error } = await applyDeptScope(db
             .from('ict_assets')
-            .select('category_id, categories(name)');
+            .select('category_id, categories(name)'));
         
         if (error) throw error;
         
@@ -162,23 +205,27 @@ async function loadSystemAlerts() {
         const todayStr = today.toISOString().split('T')[0];
         const in60Str = in60Days.toISOString().split('T')[0];
 
-        // Hardware warranty expiring within 60 days
-        const { data: warrantyAssets } = await db
+        // Hardware warranty expiring within 60 days (dept-scoped for reps)
+        const { data: warrantyAssets } = await applyDeptScope(db
             .from('ict_assets')
             .select('id, name, asset_tag, warranty_expiry')
             .neq('status', 'disposed')
             .gte('warranty_expiry', todayStr)
             .lte('warranty_expiry', in60Str)
-            .order('warranty_expiry');
+            .order('warranty_expiry'));
 
-        // Software licenses expiring within 60 days
-        const { data: softwareExpiring } = await db
-            .from('software_assets')
-            .select('id, name, vendor, license_expiry')
-            .eq('status', 'active')
-            .gte('license_expiry', todayStr)
-            .lte('license_expiry', in60Str)
-            .order('license_expiry');
+        // Software licenses — admins/technicians only (dept reps don't have software access)
+        let softwareExpiring = [];
+        if (currentProfile?.role !== ROLES.DEPARTMENT_REP) {
+            const { data } = await db
+                .from('software_assets')
+                .select('id, name, vendor, license_expiry')
+                .eq('status', 'active')
+                .gte('license_expiry', todayStr)
+                .lte('license_expiry', in60Str)
+                .order('license_expiry');
+            softwareExpiring = data || [];
+        }
 
         // Overdue maintenance (scheduled date passed, still scheduled)
         const { data: overdueMaintenance } = await db
@@ -249,14 +296,29 @@ async function loadSystemAlerts() {
 
 async function loadRecentFaults() {
     try {
-        const { data: faults, error } = await db
-            .from('fault_reports')
+        // For dept reps, restrict to their department's assets
+        let assetIdFilter = null;
+        if (currentProfile?.role === ROLES.DEPARTMENT_REP && currentProfile.department_id) {
+            const { data: deptAssets } = await db
+                .from('ict_assets')
+                .select('id')
+                .eq('department_id', currentProfile.department_id);
+            assetIdFilter = (deptAssets || []).map(a => a.id);
+            if (assetIdFilter.length === 0) {
+                document.getElementById('recentFaultsContainer').innerHTML = '<div class="text-muted text-center" style="padding: 20px;">No recent faults</div>';
+                return;
+            }
+        }
+
+        let q = db.from('fault_reports')
             .select(`
                 *,
                 ict_assets(name, asset_tag, departments(name))
             `)
             .order('created_at', { ascending: false })
             .limit(5);
+        if (assetIdFilter) q = q.in('asset_id', assetIdFilter);
+        const { data: faults, error } = await q;
         
         if (error) throw error;
         
