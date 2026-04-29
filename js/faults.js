@@ -12,9 +12,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initFaultsPage() {
     await loadAssetsForDropdown();
+    applyUrlFilters();      // pre-select filter dropdowns from ?status=... etc.
     await loadFaults();
     setupEventListeners();
     setupRoleBasedUI();
+}
+
+// Pre-fill filter selects from URL query params, e.g. faults.html?status=open
+function applyUrlFilters() {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    if (status) {
+        const sel = document.getElementById('filterStatus');
+        if (sel && [...sel.options].some(o => o.value === status)) {
+            sel.value = status;
+        }
+    }
 }
 
 function setupEventListeners() {
@@ -95,7 +108,10 @@ async function loadFaults() {
         if (search) {
             query = query.or(`description.ilike.%${search}%`);
         }
-        if (status) {
+        if (status === 'open') {
+            // "Open" combines reported + in_progress (matches dashboard's Open Faults count)
+            query = query.in('status', ['reported', 'in_progress']);
+        } else if (status) {
             query = query.eq('status', status);
         }
         if (priority) {
