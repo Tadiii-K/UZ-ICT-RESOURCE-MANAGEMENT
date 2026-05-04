@@ -30,7 +30,6 @@ async function loadDashboardData() {
             loadAssetStats(),
             loadCategoryStats(),
             loadRecentFaults(),
-            loadOpenFaultsCount(),
             loadSystemAlerts()
         ]);
 
@@ -130,33 +129,6 @@ async function loadAssetStats() {
     }
 }
 
-async function loadOpenFaultsCount() {
-    try {
-        let assetIdFilter = null;
-        // Dept reps: only count faults on their department's assets
-        if (currentProfile?.role === ROLES.DEPARTMENT_REP && currentProfile.department_id) {
-            const { data: deptAssets } = await db
-                .from('ict_assets')
-                .select('id')
-                .eq('department_id', currentProfile.department_id);
-            assetIdFilter = (deptAssets || []).map(a => a.id);
-            if (assetIdFilter.length === 0) {
-                document.getElementById('openFaults').textContent = 0;
-                return;
-            }
-        }
-
-        let q = db.from('fault_reports')
-            .select('*', { count: 'exact', head: true })
-            .in('status', ['reported', 'in_progress']);
-        if (assetIdFilter) q = q.in('asset_id', assetIdFilter);
-
-        const { count } = await q;
-        document.getElementById('openFaults').textContent = count || 0;
-    } catch (error) {
-        console.error('Open faults count error:', error);
-    }
-}
 
 async function loadCategoryStats() {
     try {
